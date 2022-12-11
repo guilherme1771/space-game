@@ -295,8 +295,15 @@ public class PlayerController : MonoBehaviour
 
     private void SetGravityVolume(CelestialBody body)
     {
-        _gravityVolumeBody = body;
-        rotationState = RotationState.Transitioning;
+        if(body){
+            _gravityVolumeBody = body;
+            rotationState = RotationState.Transitioning;
+        }else{
+            _gravityVolumeBody = null;
+            _rigidbody.MoveRotation(Quaternion.Euler(-_pitch) * _rigidbody.rotation)
+            _camera.transform.localEulerAngles = Vector3.zero;
+            _pitch = 0f;
+        }
     }
     
     private void OnTriggerEnter(Collider other)
@@ -308,6 +315,19 @@ public class PlayerController : MonoBehaviour
             if (gravityVolume.GetAttachedCelestialBody() != _gravityVolumeBody)
             {
                 SetGravityVolume(gravityVolume.GetAttachedCelestialBody());
+            }
+        }
+    }
+    
+    private void OnTriggerExit(Collider other)
+    {
+        GravityVolume gravityVolume = other.GetComponent<GravityVolume>();
+
+        if (gravityVolume)
+        {
+            if (gravityVolume.GetAttachedCelestialBody() != _gravityVolumeBody)
+            {
+                SetGravityVolume(null);
             }
         }
     }
