@@ -82,7 +82,8 @@ public class PlayerController : MonoBehaviour
         _yawInput = Input.GetAxisRaw("Mouse X") * cameraMovementSpeed * Time.deltaTime;
         _pitchInput = -Input.GetAxisRaw("Mouse Y") * cameraMovementSpeed * Time.deltaTime;
 
-        _pitch = Mathf.Clamp(_pitch + _pitchInput, -80f, 80f);
+        if(_gravityVolumeBody)
+            _pitch = Mathf.Clamp(_pitch + _pitchInput, -80f, 80f);
 
         if (Input.GetKeyDown(KeyCode.Space))
         {
@@ -136,7 +137,7 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            _rigidbody.MoveRotation(Quaternion.Euler(new Vector3(_pitchInput, 0f, 0f)) * _rigidbody.rotation);
+            _rigidbody.MoveRotation(Quaternion.Euler(GetRightDirection() * _pitchInput) * _rigidbody.rotation);
         }
 
         _wasGrounded = _isGrounded;
@@ -311,11 +312,12 @@ public class PlayerController : MonoBehaviour
             _gravityVolumeBody = null;
             _surfaceBody = null;
             _isGrounded = false;
-            _rigidbody.rotation = Quaternion.LookRotation(_camera.transform.forward, _camera.transform.up) *
-                                  _rigidbody.rotation;
+            _rigidbody.rotation = Quaternion.FromToRotation(transform.forward, _camera.transform.forward) * _rigidbody.rotation;
+            _rigidbody.angularVelocity = Vector3.zero;
+            _rigidbody.constraints = RigidbodyConstraints.FreezeRotation;
             _camera.transform.localEulerAngles = Vector3.zero;
+            _pitch = 0;
             rotationState = RotationState.Free;
-            Debug.Log(_surfaceBody);
         }
     }
     
