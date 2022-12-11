@@ -49,6 +49,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float runningSpeed;
     private float _movementSpeed;
 
+    private bool _jumpFlag;
     private bool _jumpOnNextFixedUpdate;
     [SerializeField] private float jumpForce;
 
@@ -71,6 +72,8 @@ public class PlayerController : MonoBehaviour
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+        
+        _jumpFlag = false;
     }
 
     private void Update()
@@ -119,6 +122,7 @@ public class PlayerController : MonoBehaviour
                     _isGrounded = false;
                     _surfaceBody = null;
 
+                    _jumpFlag = true;
                     _jumpOnNextFixedUpdate = false;
                 }
             }
@@ -189,7 +193,7 @@ public class PlayerController : MonoBehaviour
                     _rigidbody.position - _gravityVolumeBody.GetRigidbody().position) -
                 _gravityVolumeBody.GetModifiedSurfaceVelocity();
         
-        if (flag && relativeVelocity.y < jumpForce * .5f)
+        if (flag &&  relativeVelocity.y < jumpForce * .5f && !_jumpFlag)
         {
             _isGrounded = true;
 
@@ -203,6 +207,7 @@ public class PlayerController : MonoBehaviour
         else
         {
             _isGrounded = false;
+            _jumpFlag = false;
 
             if (_wasGrounded)
             {
@@ -298,12 +303,19 @@ public class PlayerController : MonoBehaviour
         if(body != null){
             _gravityVolumeBody = body;
             rotationState = RotationState.Transitioning;
-        }else{
+            _rigidbody.MoveRotation(Quaternion.Euler(-_pitch, 0f, 0f));
+            _camera.transform.rotation = Quaternion.Euler(-_pitch, 0f, 0f);
+        }else
+        {
+            _jumpFlag = false;
             _gravityVolumeBody = null;
-            _rigidbody.MoveRotation(Quaternion.Euler(_pitch, 0f, 0f) * _rigidbody.rotation);
+            _surfaceBody = null;
+            _isGrounded = false;
+            _rigidbody.rotation = Quaternion.LookRotation(_camera.transform.forward, _camera.transform.up) *
+                                  _rigidbody.rotation;
             _camera.transform.localEulerAngles = Vector3.zero;
-            _pitch = 0f;
             rotationState = RotationState.Free;
+            Debug.Log(_surfaceBody);
         }
     }
     
@@ -326,7 +338,7 @@ public class PlayerController : MonoBehaviour
 
         if (gravityVolume)
         {
-            if (gravityVolume.GetAttachedCelestialBody() != _gravityVolumeBody)
+            if (gravityVolume.GetAttachedCelestialBody() == _gravityVolumeBody)
             {
                 SetGravityVolume(null);
             }

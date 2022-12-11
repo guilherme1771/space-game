@@ -79,7 +79,7 @@ public class CelestialBody : MonoBehaviour
                 
                 case PlayerController.RotationState.Transitioning:
                     newPlayerRotation = Quaternion.Slerp(newPlayerRotation,
-                        Quaternion.FromToRotation(newPlayerRotation * Vector3.up, playerDirection) * newPlayerRotation,
+                        Quaternion.FromToRotation(playerController.GetUpDirection(), playerDirection) * newPlayerRotation,
                         Time.fixedDeltaTime * playerController.rotationTransitionTurnFactor);
                     break;
             }
