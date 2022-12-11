@@ -300,7 +300,7 @@ public class PlayerController : MonoBehaviour
             rotationState = RotationState.Transitioning;
         }else{
             _gravityVolumeBody = null;
-            _rigidbody.MoveRotation(Quaternion.Euler(-_pitch, 0f, 0f) * _rigidbody.rotation)
+            _rigidbody.MoveRotation(Quaternion.Euler(_pitch, 0f, 0f) * _rigidbody.rotation);
             _camera.transform.localEulerAngles = Vector3.zero;
             _pitch = 0f;
             rotationState = RotationState.Free;
