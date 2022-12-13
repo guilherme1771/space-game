@@ -5,57 +5,48 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    private Rigidbody _rigidbody;
-    private Collider _collider;
+
+    public float rotationTransitionAngleThreshold;
+    public float rotationTransitionTurnFactor;
+    public enum RotationState{Free, Locked, Transitioning}
+    public RotationState rotationState;
     
-    private CelestialBody _surfaceBody;
-    private CelestialBody _gravityVolumeBody;
     [SerializeField] private CelestialBody initialSurfaceBody;
-
-    private Camera _camera;
-
-    private Vector3 _surfaceVelocity;
-    private float _yawInput;
-    private float _pitchInput;
-
-    private RaycastHit _groundCheckRaycastHit;
     [SerializeField] private Transform groundCheckTransform;
     [SerializeField] private float groundCheckMaxDistance;
     [SerializeField] private float groundCheckSphereRadius;
     //[SerializeField] private Vector3 groundCheckCubeSize;
     [SerializeField] private LayerMask walkableLayer;
     [SerializeField] private LayerMask collidableLayer;
-
     [SerializeField] private PhysicMaterial airborneMaterial;
     [SerializeField] private PhysicMaterial walkingMaterial;
     [SerializeField] private PhysicMaterial standingMaterial;
-
-    public float rotationTransitionAngleThreshold;
-    public float rotationTransitionTurnFactor;
-
-    private bool _isMoving;
-    private bool _wasMoving;
-    
-    private bool _isGrounded;
-    private bool _wasGrounded;
-
-    private float _pitch;
-
-    private Vector2 _movementInput;
-    private float _movementDeadzone = 0.1f;
     [SerializeField] private float cameraMovementSpeed;
-
     [SerializeField] private float walkingSpeed;
     [SerializeField] private float runningSpeed;
+    [SerializeField] private float jumpForce;
+    
+    private Rigidbody _rigidbody;
+    private Collider _collider;
+    private CelestialBody _surfaceBody;
+    private CelestialBody _gravityVolumeBody;
+    private Camera _camera;
+    private Vector3 _surfaceVelocity;
+    private float _yawInput;
+    private float _pitchInput;
+    private RaycastHit _groundCheckRaycastHit;
+    private Vector2 _movementInput;
+    private float _movementDeadzone = 0.1f;
     private float _movementSpeed;
-
+    private bool _isMoving;
+    private bool _wasMoving;
+    private bool _isGrounded;
+    private bool _wasGrounded;
+    private float _pitch;
     private bool _jumpFlag;
     private bool _jumpOnNextFixedUpdate;
-    [SerializeField] private float jumpForce;
-
-    public enum RotationState{Free, Locked, Transitioning}
-
-    public RotationState rotationState;
+    private Vector3 _contactPoint;
+    private Vector3 _surfaceNormal;
 
     private void Awake()
     {
@@ -104,9 +95,10 @@ public class PlayerController : MonoBehaviour
 
         if (_gravityVolumeBody)
         {
+            _gravityVolumeBody.CalculatePlayerMovement();
             if (rotationState == RotationState.Transitioning)
             {
-                if (Vector3.Angle(GetUpDirection(), _gravityVolumeBody.GetPlayerUpDirection()) <= rotationTransitionAngleThreshold)
+                if (Vector3.Angle(_gravityVolumeBody.GetPlayerUpDirection(), GetUpDirection()) <= rotationTransitionAngleThreshold)
                 {
                     rotationState = RotationState.Locked;
                 }
@@ -179,7 +171,7 @@ public class PlayerController : MonoBehaviour
         _collider.material = standingMaterial;
         _surfaceVelocity = Vector3.zero;
     }
-    
+
     private void CheckGrounded()
     {
         Vector3 relativeVelocity = Vector3.zero;
@@ -187,16 +179,28 @@ public class PlayerController : MonoBehaviour
         //bool flag = Physics.BoxCast(groundCheckTransform.position, groundCheckCubeSize, -GetUpDirection(), out _groundCheckRaycastHit, _rigidbody.rotation, groundCheckMaxDistance, walkableLayer);
         bool flag = Physics.SphereCast(groundCheckTransform.position, groundCheckSphereRadius, -GetUpDirection(),
             out _groundCheckRaycastHit, groundCheckMaxDistance, walkableLayer);
-        
+
         if (_gravityVolumeBody)
+        {
             relativeVelocity = _rigidbody.velocity - _gravityVolumeBody.GetRigidbody().velocity -
-                Vector3.Cross(_gravityVolumeBody.GetRigidbody().angularVelocity,
-                    _rigidbody.position - _gravityVolumeBody.GetRigidbody().position) -
-                _gravityVolumeBody.GetModifiedSurfaceVelocity();
-        
+                               Vector3.Cross(_gravityVolumeBody.GetRigidbody().angularVelocity,
+                                   _rigidbody.position - _gravityVolumeBody.GetRigidbody().position) -
+                               _gravityVolumeBody.GetModifiedSurfaceVelocity();
+
+            /*if (relativeVelocity.y < 0)
+            {
+                if (_rigidbody.SweepTest(-GetUpDirection(), out var hit, relativeVelocity.y * Time.fixedDeltaTime))
+                {
+                    _rigidbody.MovePosition(-GetUpDirection() * hit.distance);
+                }
+            }*/
+        }
+
         if (flag &&  relativeVelocity.y < jumpForce * .5f && !_jumpFlag)
         {
             _isGrounded = true;
+            _contactPoint = _groundCheckRaycastHit.point;
+            _surfaceNormal = _groundCheckRaycastHit.normal;
 
             if (!_wasGrounded)
             {
@@ -215,6 +219,16 @@ public class PlayerController : MonoBehaviour
                 OnGetUngrounded();
             }
         }
+    }
+
+    public RaycastHit GetGroundedRaycastHit()
+    {
+        return _groundCheckRaycastHit;
+    }
+
+    public Vector3 GetContactPoint()
+    {
+        return _contactPoint;
     }
 
     private void OnGetGrounded()
@@ -256,7 +270,7 @@ public class PlayerController : MonoBehaviour
 
     public Vector3 GetSurfaceNormal()
     {
-        return _groundCheckRaycastHit.normal;
+        return _surfaceNormal;
     }
     
     public Rigidbody GetRigidbody()
@@ -304,8 +318,6 @@ public class PlayerController : MonoBehaviour
         if(body != null){
             _gravityVolumeBody = body;
             rotationState = RotationState.Transitioning;
-            _rigidbody.MoveRotation(Quaternion.Euler(-_pitch, 0f, 0f));
-            _camera.transform.rotation = Quaternion.Euler(-_pitch, 0f, 0f);
         }else
         {
             _jumpFlag = false;
@@ -346,4 +358,12 @@ public class PlayerController : MonoBehaviour
             }
         }
     }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.red;
+        
+        Gizmos.DrawSphere(transform.position - transform.up * groundCheckMaxDistance, groundCheckSphereRadius);
+    }
 }
+

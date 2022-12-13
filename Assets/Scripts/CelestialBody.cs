@@ -38,33 +38,34 @@ public class CelestialBody : MonoBehaviour
         _playerOnSurfaceFlag = playerController.GetGrounded();
         
         CalculatePlayerGravity();
+    }
 
-        if (playerController.GetGravityVolumeBody() == this)
-        {
-            Quaternion newPlayerRotation = playerController.GetRigidbody().rotation;
+    public void CalculatePlayerMovement()
+    {
+        Quaternion newPlayerRotation = playerController.GetRigidbody().rotation;
             Vector3 playerDirection = (playerController.GetRigidbody().position - _rigidbody.position + playerController.GetRigidbody().rotation * playerController.GetSurfaceVelocity() * Time.fixedDeltaTime).normalized;
             _playerDirection = playerDirection;
             if (playerController.GetSurfaceBody() == this)
             {
-                Vector3 relativePosition = playerController.GetRigidbody().position - _rigidbody.position;
                 newPlayerRotation = Quaternion.Euler(_angularVelocity * Time.fixedDeltaTime) * newPlayerRotation;
-
-                RaycastHit hit;
 
                 Vector3 playerSurfaceVelocity;
 
-                playerSurfaceVelocity =
+                playerSurfaceVelocity = Vector3.ClampMagnitude(
                     Quaternion.LookRotation(playerController.GetForwardDirection(),
-                        playerController.GetSurfaceNormal()) * playerController.GetSurfaceVelocity();
+                        playerController.GetSurfaceNormal()) * playerController.GetSurfaceVelocity(),
+                    playerController.GetSurfaceVelocity().magnitude);
 
                 _modifiedPlayerSurfaceVelocity = playerSurfaceVelocity;
 
                 Vector3 newPlayerPosition =
                     RotatePointAround(
-                        playerController.GetRigidbody().position, _rigidbody.position,
-                        _angularVelocity);
-
-                playerController.GetRigidbody().velocity = (newPlayerPosition - playerController.GetRigidbody().position) / Time.fixedDeltaTime + playerSurfaceVelocity;
+                        playerController.GetContactPoint(), _rigidbody.position,
+                        _angularVelocity) + GetPlayerUpDirection() * 1f;
+                
+                playerController.GetRigidbody().velocity =
+                    (newPlayerPosition - playerController.GetRigidbody().position) / Time.fixedDeltaTime +
+                    playerSurfaceVelocity;
             }
 
             switch (playerController.rotationState)
@@ -84,7 +85,6 @@ public class CelestialBody : MonoBehaviour
                     break;
             }
             playerController.GetRigidbody().MoveRotation(newPlayerRotation);
-        }
     }
 
     private void CalculatePlayerGravity()
